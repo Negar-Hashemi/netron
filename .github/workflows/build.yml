@@ -1,85 +1,38 @@
-
-name: Build
+name: Test on Multiple OS
 
 on:
   push:
-    branches: [ '**' ]
-    tags-ignore: [ '**' ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
-    name: Build
     runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ macos-latest, ubuntu-latest, windows-latest ]
-
-    steps:
-      - name: Clone Git repository
-        uses: actions/checkout@v4
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: latest
-
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
-
-      - name: Install Packages
-        run: npm run install
-
-      - name: Validate
-        run: npm run validate
-
-      - name: Build Python Server
-        run: npm run build python
-
-      - name: Build Electron
-        shell: bash
-        run: |
-          npx electron-builder install-app-deps
-          case "${{ matrix.os }}" in
-            macos*)
-              CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --universal --publish never -c.mac.identity=null
-              ;;
-            ubuntu*)
-              npx electron-builder --linux appimage --x64 --publish never
-              npx electron-builder --linux snap --x64 --publish never
-              ;;
-            windows*)
-              npx electron-builder --win --x64 --arm64 --publish never
-              ;;
-          esac
-
-  analyze:
-    name: Analyze
-    runs-on: ubuntu-latest
-
-    permissions:
-      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript', 'python' ]
+        os: [ubuntu-latest, macos-latest, windows-latest] # Operating systems to test
+        node-version: [18, 20, 22]                      # Node.js versions to test
+        attempt: [1, 2, 3, 4, 5]                        # Repeat tests 5 times
 
     steps:
-      - name: Clone Git repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
         with:
-          languages: ${{ matrix.language }}
+          node-version: ${{ matrix.node-version }}
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+      - name: Install dependencies
+        run: npm install
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+
+      - name: Testing on OS (${{ matrix.os }}) with Node.js (version ${{ matrix.node-version }}) attempt ${{ matrix.attempt }}
+        run: |
+          echo "Run attempt: ${{ matrix.attempt }}"
+          npm test
